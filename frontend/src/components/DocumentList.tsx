@@ -57,7 +57,7 @@ export function DocumentList({ onDocumentSelect, selectedDocumentId }: DocumentL
       <div className="flex items-center justify-between mb-4">
         <h2 className="text-lg font-semibold">Documents</h2>
         <span className="text-sm text-gray-500">
-          {data?.total || 0} / 2 documents
+          {data?.total || 0} / 10 documents
         </span>
       </div>
 

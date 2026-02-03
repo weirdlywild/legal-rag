@@ -27,6 +27,23 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// Handle 401 errors (expired/invalid token) by clearing auth and reloading
+apiClient.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    if (error.response?.status === 401 && typeof window !== 'undefined') {
+      // Don't redirect for auth endpoints
+      const isAuthEndpoint = error.config?.url?.includes('/auth/');
+      if (!isAuthEndpoint) {
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user_id');
+        window.location.reload();
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 // Custom instance for orval
 export const customInstance = <T>(config: AxiosRequestConfig): Promise<T> => {
   const source = axios.CancelToken.source();

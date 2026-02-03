@@ -10,7 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDocuments } from '@/hooks/useApi';
 
 export default function Home() {
-  const { isAuthenticated, isLoading, logout } = useAuth();
+  const { isAuthenticated, isLoading, logout, userId } = useAuth();
   const { data: documents } = useDocuments();
   const hasDocuments = (documents?.total || 0) > 0;
 
@@ -42,13 +42,20 @@ export default function Home() {
               </p>
             </div>
           </div>
-          <button
-            onClick={logout}
-            className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm"
-          >
-            <LogOut className="w-4 h-4" />
-            Logout
-          </button>
+          <div className="flex items-center gap-4">
+            {userId && (
+              <span className="text-xs text-gray-400" title={`Session ID: ${userId}`}>
+                Session: {userId.slice(0, 8)}...
+              </span>
+            )}
+            <button
+              onClick={logout}
+              className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm"
+            >
+              <LogOut className="w-4 h-4" />
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
@@ -61,8 +68,7 @@ export default function Home() {
           </h2>
           <p className="text-sm text-blue-800">
             This is a demonstration system. Answers are generated using AI and should be verified
-            against source documents. This is not legal advice. OpenAI GPT-4o is used for answer
-            generation with associated costs.
+            against source documents. This is not legal advice. Your documents are private to your session.
           </p>
         </div>
 

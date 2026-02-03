@@ -79,6 +79,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     localStorage.removeItem(USER_ID_KEY);
     setIsAuthenticated(false);
     setUserId(null);
+    // Reload to clear all cached data
+    window.location.reload();
   };
 
   return (
