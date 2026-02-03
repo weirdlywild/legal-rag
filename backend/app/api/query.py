@@ -1,5 +1,6 @@
 """Query/chat endpoint for document Q&A."""
 
+import re
 import time
 from fastapi import APIRouter, Depends, HTTPException, status
 
@@ -21,6 +22,19 @@ from ..services.llm_service import get_llm_service
 from ..utils.cost_tracker import get_cost_tracker
 
 router = APIRouter(prefix="/query", tags=["query"])
+
+
+def normalize_query(question: str) -> str:
+    """Normalize common abbreviations in query for better semantic search."""
+    # Map common abbreviations to full forms (case-insensitive)
+    replacements = {
+        r'\bdocs\b': 'documents',
+        r'\bdoc\b': 'document',
+    }
+    normalized = question
+    for pattern, replacement in replacements.items():
+        normalized = re.sub(pattern, replacement, normalized, flags=re.IGNORECASE)
+    return normalized
 
 
 @router.post(
@@ -71,9 +85,12 @@ async def query_documents(
             detail="No documents uploaded. Please upload a PDF document first.",
         )
 
+    # Normalize query (expand abbreviations like "docs" -> "documents")
+    normalized_question = normalize_query(request.question)
+
     # Generate query embedding (with timing)
     embed_start = time.time()
-    query_embedding = embedding_service.embed_text(request.question)
+    query_embedding = embedding_service.embed_text(normalized_question)
     embed_time_ms = int((time.time() - embed_start) * 1000)
 
     # Retrieve relevant chunks (with timing)
