@@ -29,7 +29,7 @@ class Settings(BaseSettings):
     qdrant_collection_name: str = "legal_documents"
 
     # Document Limits
-    max_documents: int = 2
+    max_documents: int = 10
     max_pages_per_document: int = 80
     max_file_size_mb: int = 10
 
