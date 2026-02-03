@@ -1,3 +1,14 @@
+---
+title: Legal AI RAG
+emoji: ⚖️
+colorFrom: blue
+colorTo: indigo
+sdk: docker
+pinned: false
+license: mit
+app_port: 7860
+---
+
 # Legal AI RAG POC
 
 A Proof of Concept Legal AI Assistant demonstrating high-quality legal reasoning with grounded answers, citations, and source attribution.
@@ -9,10 +20,10 @@ A Proof of Concept Legal AI Assistant demonstrating high-quality legal reasoning
   └── Next.js Frontend
         └── OpenAPI-generated TypeScript client
 
-[Render - Free Tier]
-  └── FastAPI Backend
+[Hugging Face Spaces - Free Tier]
+  └── FastAPI Backend (Docker)
         ├── sentence-transformers (all-MiniLM-L6-v2)
-        ├── OpenAI GPT-4o (answer generation ONLY)
+        ├── OpenAI GPT-4o-mini (answer generation)
         └── pymupdf4llm (PDF parsing)
 
 [Qdrant Cloud - Free Tier]
@@ -96,15 +107,17 @@ NEXT_PUBLIC_API_KEY=your-secure-api-key
 
 ## Deployment
 
-### Backend on Render
+### Backend on Hugging Face Spaces
 
-1. Create a new Web Service on Render
-2. Connect your GitHub repository
-3. Set the following:
-   - **Root Directory**: `backend`
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-4. Add environment variables in Render dashboard
+1. Create a new Space on Hugging Face
+2. Select **Docker** as the SDK
+3. Link your GitHub repository OR push directly to HF
+4. Add secrets in Space settings:
+   - `API_KEY` - API key for authentication
+   - `APP_PASSWORD` - Password for frontend access
+   - `OPENAI_API_KEY` - OpenAI API key
+   - `QDRANT_URL` - Qdrant Cloud URL
+   - `QDRANT_API_KEY` - Qdrant Cloud API key
 
 ### Frontend on Vercel
 
@@ -113,8 +126,15 @@ NEXT_PUBLIC_API_KEY=your-secure-api-key
    - **Root Directory**: `frontend`
    - **Framework Preset**: Next.js
 3. Add environment variables:
-   - `NEXT_PUBLIC_API_URL`: Your Render backend URL
+   - `NEXT_PUBLIC_API_URL`: Your HF Spaces backend URL (e.g., `https://username-space-name.hf.space/api/v1`)
    - `NEXT_PUBLIC_API_KEY`: Your API key
+
+### Auto-Sync with Husky
+
+This repo uses Husky to automatically sync to HF Spaces when you push to GitHub:
+```bash
+git push origin main  # Automatically pushes to HF Spaces too
+```
 
 ## API Endpoints
 

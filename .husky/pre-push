@@ -1,0 +1,10 @@
+#!/usr/bin/env sh
+
+# Get the remote name being pushed to
+remote="$1"
+
+# Only sync to HF Spaces when pushing to origin (GitHub), not to space itself
+if [ "$remote" = "origin" ]; then
+  echo "Syncing to Hugging Face Spaces..."
+  git push space main --force 2>/dev/null || echo "Note: HF Spaces sync skipped (space remote not configured or auth needed)"
+fi
