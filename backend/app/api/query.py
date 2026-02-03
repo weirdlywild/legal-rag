@@ -4,6 +4,7 @@ import time
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from ..auth import verify_api_key
+from .auth import get_user_id_from_token
 from ..config import get_settings
 from ..models.requests import QueryRequest
 from ..models.responses import (
@@ -36,6 +37,7 @@ router = APIRouter(prefix="/query", tags=["query"])
 async def query_documents(
     request: QueryRequest,
     _api_key: str = Depends(verify_api_key),
+    user_id: str = Depends(get_user_id_from_token),
 ) -> QueryResponse:
     """
     Ask a question about uploaded documents.
@@ -61,8 +63,8 @@ async def query_documents(
     # Start total timing
     total_start = time.time()
 
-    # Check if any documents are uploaded
-    doc_count = vector_store.get_document_count()
+    # Check if any documents are uploaded for this user
+    doc_count = vector_store.get_document_count(user_id)
     if doc_count == 0:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -78,6 +80,7 @@ async def query_documents(
     search_start = time.time()
     chunks = vector_store.search(
         query_embedding=query_embedding,
+        user_id=user_id,
         limit=request.max_citations or settings.top_k_chunks,
         document_ids=request.document_ids,
         min_score=settings.min_relevance_score,

@@ -43,16 +43,17 @@ class VectorStoreService:
                 ),
             )
 
-        # Always try to create payload index for document_id (idempotent operation)
-        try:
-            self.client.create_payload_index(
-                collection_name=self.collection_name,
-                field_name="document_id",
-                field_schema=qdrant_models.PayloadSchemaType.KEYWORD,
-            )
-        except Exception:
-            # Index might already exist, which is fine
-            pass
+        # Always try to create payload indexes (idempotent operation)
+        for field_name in ["document_id", "user_id"]:
+            try:
+                self.client.create_payload_index(
+                    collection_name=self.collection_name,
+                    field_name=field_name,
+                    field_schema=qdrant_models.PayloadSchemaType.KEYWORD,
+                )
+            except Exception:
+                # Index might already exist, which is fine
+                pass
 
     def is_healthy(self) -> bool:
         """Check if Qdrant is accessible."""
@@ -91,6 +92,7 @@ class VectorStoreService:
                     "chunk_id": chunk.chunk_id,
                     "document_id": chunk.document_id,
                     "document_title": chunk.document_title,
+                    "user_id": chunk.user_id,
                     "page_number": chunk.page_number,
                     "section_title": chunk.section_title,
                     "text": chunk.text,
@@ -110,6 +112,7 @@ class VectorStoreService:
     def search(
         self,
         query_embedding: list[float],
+        user_id: str,
         limit: int = 5,
         document_ids: list[str] | None = None,
         min_score: float = 0.5,
@@ -119,6 +122,7 @@ class VectorStoreService:
 
         Args:
             query_embedding: Query vector
+            user_id: User ID to filter by (required)
             limit: Maximum results to return
             document_ids: Optional filter to specific documents
             min_score: Minimum relevance score
@@ -126,17 +130,29 @@ class VectorStoreService:
         Returns:
             List of matching chunks with scores
         """
-        query_filter = None
-        if document_ids:
-            query_filter = qdrant_models.Filter(
-                should=[
-                    qdrant_models.FieldCondition(
-                        key="document_id",
-                        match=qdrant_models.MatchValue(value=doc_id),
-                    )
-                    for doc_id in document_ids
-                ]
+        # Always filter by user_id
+        must_conditions = [
+            qdrant_models.FieldCondition(
+                key="user_id",
+                match=qdrant_models.MatchValue(value=user_id),
             )
+        ]
+
+        # Optionally filter by document_ids
+        should_conditions = None
+        if document_ids:
+            should_conditions = [
+                qdrant_models.FieldCondition(
+                    key="document_id",
+                    match=qdrant_models.MatchValue(value=doc_id),
+                )
+                for doc_id in document_ids
+            ]
+
+        query_filter = qdrant_models.Filter(
+            must=must_conditions,
+            should=should_conditions if should_conditions else None,
+        )
 
         # Single fast query
         results = self.client.query_points(
@@ -159,18 +175,26 @@ class VectorStoreService:
 
         return filtered[:limit]
 
-    def get_document_chunks(self, document_id: str) -> list[dict[str, Any]]:
-        """Get all chunks for a specific document."""
+    def get_document_chunks(self, document_id: str, user_id: str | None = None) -> list[dict[str, Any]]:
+        """Get all chunks for a specific document, optionally filtered by user_id."""
+        must_conditions = [
+            qdrant_models.FieldCondition(
+                key="document_id",
+                match=qdrant_models.MatchValue(value=document_id),
+            )
+        ]
+
+        if user_id:
+            must_conditions.append(
+                qdrant_models.FieldCondition(
+                    key="user_id",
+                    match=qdrant_models.MatchValue(value=user_id),
+                )
+            )
+
         results, _ = self.client.scroll(
             collection_name=self.collection_name,
-            scroll_filter=qdrant_models.Filter(
-                must=[
-                    qdrant_models.FieldCondition(
-                        key="document_id",
-                        match=qdrant_models.MatchValue(value=document_id),
-                    )
-                ]
-            ),
+            scroll_filter=qdrant_models.Filter(must=must_conditions),
             limit=1000,  # Should be enough for a single document
             with_payload=True,
             with_vectors=False,
@@ -178,15 +202,15 @@ class VectorStoreService:
 
         return [point.payload for point in results]
 
-    def delete_by_document(self, document_id: str) -> int:
+    def delete_by_document(self, document_id: str, user_id: str) -> int:
         """
-        Delete all chunks for a document.
+        Delete all chunks for a document belonging to a user.
 
         Returns:
             Number of chunks deleted
         """
-        # Count before deletion
-        chunks = self.get_document_chunks(document_id)
+        # Count before deletion (filtered by user_id)
+        chunks = self.get_document_chunks(document_id, user_id)
         count = len(chunks)
 
         if count > 0:
@@ -198,7 +222,11 @@ class VectorStoreService:
                             qdrant_models.FieldCondition(
                                 key="document_id",
                                 match=qdrant_models.MatchValue(value=document_id),
-                            )
+                            ),
+                            qdrant_models.FieldCondition(
+                                key="user_id",
+                                match=qdrant_models.MatchValue(value=user_id),
+                            ),
                         ]
                     )
                 ),
@@ -206,15 +234,27 @@ class VectorStoreService:
 
         return count
 
-    def get_all_documents(self) -> list[StoredDocument]:
-        """Get metadata for all stored documents."""
+    def get_all_documents(self, user_id: str | None = None) -> list[StoredDocument]:
+        """Get metadata for all stored documents, optionally filtered by user_id."""
         # Scroll through all points to get unique documents
         documents: dict[str, StoredDocument] = {}
+
+        scroll_filter = None
+        if user_id:
+            scroll_filter = qdrant_models.Filter(
+                must=[
+                    qdrant_models.FieldCondition(
+                        key="user_id",
+                        match=qdrant_models.MatchValue(value=user_id),
+                    )
+                ]
+            )
 
         offset = None
         while True:
             results, offset = self.client.scroll(
                 collection_name=self.collection_name,
+                scroll_filter=scroll_filter,
                 limit=100,
                 offset=offset,
                 with_payload=True,
@@ -252,9 +292,9 @@ class VectorStoreService:
 
         return list(documents.values())
 
-    def get_document_count(self) -> int:
-        """Get the number of unique documents stored."""
-        return len(self.get_all_documents())
+    def get_document_count(self, user_id: str | None = None) -> int:
+        """Get the number of unique documents stored, optionally filtered by user_id."""
+        return len(self.get_all_documents(user_id))
 
     def get_total_chunk_count(self) -> int:
         """Get total number of chunks stored."""

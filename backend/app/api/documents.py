@@ -6,6 +6,7 @@ from datetime import datetime
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 
 from ..auth import verify_api_key
+from .auth import get_user_id_from_token
 from ..config import get_settings
 from ..models.responses import (
     DocumentListResponse,
@@ -30,16 +31,17 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 )
 async def list_documents(
     _api_key: str = Depends(verify_api_key),
+    user_id: str = Depends(get_user_id_from_token),
 ) -> DocumentListResponse:
     """
-    List all uploaded documents.
+    List all uploaded documents for the current user.
 
     Returns document metadata including page count, chunk count, and upload date.
     """
     settings = get_settings()
     vector_store = get_vector_store()
 
-    stored_docs = vector_store.get_all_documents()
+    stored_docs = vector_store.get_all_documents(user_id)
 
     documents = [
         DocumentSummary(
@@ -75,20 +77,21 @@ async def upload_document(
     file: UploadFile = File(..., description="PDF file to upload"),
     title: str | None = Form(None, description="Optional custom title"),
     _api_key: str = Depends(verify_api_key),
+    user_id: str = Depends(get_user_id_from_token),
 ) -> DocumentUploadResponse:
     """
     Upload a PDF document for processing.
 
     The document will be parsed, chunked, and indexed for retrieval.
-    Maximum 2 documents, 80 pages per document, 10MB file size.
+    Maximum 10 documents per user, 80 pages per document, 10MB file size.
     """
     settings = get_settings()
     pdf_processor = get_pdf_processor()
     embedding_service = get_embedding_service()
     vector_store = get_vector_store()
 
-    # Check document limit
-    current_count = vector_store.get_document_count()
+    # Check document limit for this user
+    current_count = vector_store.get_document_count(user_id)
     if current_count >= settings.max_documents:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -110,7 +113,7 @@ async def upload_document(
     # Process PDF
     start_time = time.time()
     try:
-        processed_doc = pdf_processor.process_pdf(content, filename, title)
+        processed_doc = pdf_processor.process_pdf(content, filename, user_id, title)
     except ValueError as e:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -154,6 +157,7 @@ async def upload_document(
 async def get_document(
     document_id: str,
     _api_key: str = Depends(verify_api_key),
+    user_id: str = Depends(get_user_id_from_token),
 ) -> DocumentDetailResponse:
     """
     Get detailed information about a document.
@@ -162,8 +166,8 @@ async def get_document(
     """
     vector_store = get_vector_store()
 
-    # Get chunks for this document
-    chunks_data = vector_store.get_document_chunks(document_id)
+    # Get chunks for this document (filtered by user_id)
+    chunks_data = vector_store.get_document_chunks(document_id, user_id)
 
     if not chunks_data:
         raise HTTPException(
@@ -219,6 +223,7 @@ async def get_document(
 async def delete_document(
     document_id: str,
     _api_key: str = Depends(verify_api_key),
+    user_id: str = Depends(get_user_id_from_token),
 ) -> DeleteResponse:
     """
     Delete a document and all its chunks.
@@ -227,8 +232,8 @@ async def delete_document(
     """
     vector_store = get_vector_store()
 
-    # Check if document exists
-    chunks = vector_store.get_document_chunks(document_id)
+    # Check if document exists for this user
+    chunks = vector_store.get_document_chunks(document_id, user_id)
     if not chunks:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -236,7 +241,7 @@ async def delete_document(
         )
 
     # Delete the document
-    chunks_removed = vector_store.delete_by_document(document_id)
+    chunks_removed = vector_store.delete_by_document(document_id, user_id)
 
     return DeleteResponse(
         success=True,

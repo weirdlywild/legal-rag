@@ -118,6 +118,7 @@ class PDFProcessor:
         self,
         file_content: bytes,
         filename: str,
+        user_id: str,
         custom_title: str | None = None,
     ) -> ProcessedDocument:
         """
@@ -126,6 +127,7 @@ class PDFProcessor:
         Args:
             file_content: PDF file bytes
             filename: Original filename
+            user_id: Owner user ID
             custom_title: Optional custom title
 
         Returns:
@@ -194,6 +196,7 @@ class PDFProcessor:
                     chunk_id=f"{doc_id}_p{page_num}_c{i}",
                     document_id=doc_id,
                     document_title=title,
+                    user_id=user_id,
                     page_number=page_num,
                     section_title=section_title,
                     text=chunk_text,

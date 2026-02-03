@@ -10,11 +10,20 @@ export const apiClient = axios.create({
   },
 });
 
-// Add API key to all requests
+// Add API key and user token to all requests
 apiClient.interceptors.request.use((config) => {
   if (API_KEY) {
     config.headers['X-API-Key'] = API_KEY;
   }
+
+  // Add user token if available (for user-specific document access)
+  if (typeof window !== 'undefined') {
+    const userToken = localStorage.getItem('auth_token');
+    if (userToken) {
+      config.headers['X-User-Token'] = userToken;
+    }
+  }
+
   return config;
 });
 

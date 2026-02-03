@@ -10,6 +10,7 @@ class Chunk(BaseModel):
     chunk_id: str = Field(..., description="Unique chunk identifier")
     document_id: str = Field(..., description="Parent document ID")
     document_title: str = Field(..., description="Parent document title")
+    user_id: str = Field(..., description="Owner user ID")
     page_number: int = Field(..., description="Page number (1-indexed)")
     section_title: str | None = Field(None, description="Section title if detected")
     text: str = Field(..., description="Chunk text content")
