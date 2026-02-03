@@ -50,7 +50,7 @@ class Settings(BaseSettings):
     gpt4o_output_cost_per_1k: float = 0.0006
 
     # CORS Configuration - accepts JSON string or list
-    cors_origins: list[str] = ["http://localhost:3000", "https://legal.rajsinh.work", "https://*.vercel.app", "https://*.hf.space"]
+    cors_origins: list[str] = ["http://localhost:3000", "https://legal.rajsinh.work"]
 
     class Config:
         env_file = ".env"
