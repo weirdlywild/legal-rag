@@ -1,28 +1,54 @@
 'use client';
 
-import { Scale } from 'lucide-react';
+import { Scale, LogOut, Loader2 } from 'lucide-react';
 import { DocumentUpload } from '@/components/DocumentUpload';
 import { DocumentList } from '@/components/DocumentList';
 import { ChatInterface } from '@/components/ChatInterface';
 import { SystemInfo } from '@/components/SystemInfo';
+import { Login } from '@/components/Login';
+import { useAuth } from '@/contexts/AuthContext';
 import { useDocuments } from '@/hooks/useApi';
 
 export default function Home() {
+  const { isAuthenticated, isLoading, logout } = useAuth();
   const { data: documents } = useDocuments();
   const hasDocuments = (documents?.total || 0) > 0;
+
+  // Show loading state
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-100">
+        <Loader2 className="w-8 h-8 animate-spin text-primary-600" />
+      </div>
+    );
+  }
+
+  // Show login if not authenticated
+  if (!isAuthenticated) {
+    return <Login />;
+  }
 
   return (
     <main className="h-screen flex flex-col overflow-hidden">
       {/* Header */}
       <header className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center gap-3">
-          <Scale className="w-8 h-8 text-primary-600" />
-          <div>
-            <h1 className="text-xl font-bold text-gray-900">Legal AI Assistant</h1>
-            <p className="text-sm text-gray-500">
-              Upload legal documents and ask questions with source citations
-            </p>
+        <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Scale className="w-8 h-8 text-primary-600" />
+            <div>
+              <h1 className="text-xl font-bold text-gray-900">Legal AI Assistant</h1>
+              <p className="text-sm text-gray-500">
+                Upload legal documents and ask questions with source citations
+              </p>
+            </div>
           </div>
+          <button
+            onClick={logout}
+            className="flex items-center gap-2 text-gray-500 hover:text-gray-700 text-sm"
+          >
+            <LogOut className="w-4 h-4" />
+            Logout
+          </button>
         </div>
       </header>
 

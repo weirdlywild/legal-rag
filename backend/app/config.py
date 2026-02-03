@@ -15,6 +15,7 @@ class Settings(BaseSettings):
 
     # Authentication
     api_key: str  # Required - set via environment variable
+    app_password: str  # Required - password for frontend access
 
     # OpenAI Configuration
     openai_api_key: str  # Required - set via environment variable
@@ -48,8 +49,8 @@ class Settings(BaseSettings):
     gpt4o_input_cost_per_1k: float = 0.00015
     gpt4o_output_cost_per_1k: float = 0.0006
 
-    # CORS Configuration
-    cors_origins: list[str] = ["http://localhost:3000"]
+    # CORS Configuration - accepts JSON string or list
+    cors_origins: list[str] = ["http://localhost:3000", "https://*.vercel.app", "https://*.hf.space"]
 
     class Config:
         env_file = ".env"
