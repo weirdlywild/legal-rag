@@ -19,8 +19,8 @@ class Settings(BaseSettings):
 
     # OpenAI Configuration
     openai_api_key: str  # Required - set via environment variable
-    openai_model: str = "gpt-4o-mini"  # Faster than gpt-4o, still high quality
-    openai_max_tokens: int = 1000  # Reduced for faster responses
+    openai_model: str = "gpt-4o"  # Best quality model
+    openai_max_tokens: int = 2000  # Allow thorough answers
     openai_temperature: float = 0.1
 
     # Qdrant Cloud Configuration
@@ -38,16 +38,16 @@ class Settings(BaseSettings):
     chunk_overlap_tokens: int = 100
 
     # Retrieval Configuration
-    top_k_chunks: int = 6  # Balanced for speed and context
-    min_relevance_score: float = 0.10  # Slightly higher to reduce noise
+    top_k_chunks: int = 10  # More context for better answers
+    min_relevance_score: float = 0.15  # Filter out low relevance chunks
 
     # Cost Control
     max_daily_queries: int = 100
-    max_daily_cost_usd: float = 1.00
+    max_daily_cost_usd: float = 5.00  # Increased for GPT-4o
 
-    # OpenAI Pricing (per 1K tokens) - GPT-4o-mini pricing
-    gpt4o_input_cost_per_1k: float = 0.00015
-    gpt4o_output_cost_per_1k: float = 0.0006
+    # OpenAI Pricing (per 1K tokens) - GPT-4o pricing
+    gpt4o_input_cost_per_1k: float = 0.0025
+    gpt4o_output_cost_per_1k: float = 0.01
 
     # CORS Configuration - accepts JSON string or list
     cors_origins: list[str] = ["http://localhost:3000", "https://legal.rajsinh.work"]

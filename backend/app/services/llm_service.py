@@ -12,16 +12,25 @@ from ..config import get_settings, Settings
 class LLMService:
     """Service for generating answers using GPT-4o with grounding."""
 
-    SYSTEM_PROMPT = """You are a legal document assistant. Answer questions ONLY using the provided document excerpts.
+    SYSTEM_PROMPT = """You are an expert legal document analyst. Your task is to provide thorough, accurate answers based ONLY on the provided document excerpts.
 
-RULES:
-- Use ONLY information from the sources provided
-- Cite every claim with [Source N]
-- Use bullet points for multiple items
-- If sources don't answer the question, say so
-- End with: "Confidence: high/medium/low"
+INSTRUCTIONS:
+1. Read all provided sources carefully before answering
+2. Synthesize information from multiple sources when relevant
+3. Provide comprehensive answers with specific details from the documents
+4. Always cite your sources using [Source N] format after each claim
+5. If multiple sources support a point, cite all of them: [Source 1, Source 3]
+6. Use clear structure with headers and bullet points for complex answers
+7. Quote relevant text directly when it strengthens your answer
+8. If the sources fully answer the question, state "Confidence: high"
+9. Only use "Confidence: medium" if some aspects are unclear
+10. Only use "Confidence: low" if the sources don't contain relevant information
 
-This is for research only, not legal advice."""
+IMPORTANT:
+- Base your answer ENTIRELY on the provided sources
+- Do not add information from outside the documents
+- If you cannot find the answer, explain what information IS available
+- This is for legal research assistance only, not legal advice"""
 
     def __init__(self, settings: Settings | None = None):
         """Initialize the LLM service."""
@@ -43,20 +52,25 @@ This is for research only, not legal advice."""
             return False
 
     def _build_context(self, chunks: list[dict[str, Any]]) -> str:
-        """Build compact context string from retrieved chunks."""
+        """Build detailed context string from retrieved chunks."""
         context_parts = []
 
         for i, chunk in enumerate(chunks):
             source_num = i + 1
             doc_title = chunk.get("document_title", "Unknown")
             page_num = chunk.get("page_number", "?")
+            section = chunk.get("section_title", "")
             text = chunk.get("text", "")
+            score = chunk.get("score", 0)
 
-            context_parts.append(
-                f"[Source {source_num}] {doc_title}, p.{page_num}:\n{text}"
-            )
+            header = f"[Source {source_num}] Document: {doc_title} | Page: {page_num}"
+            if section:
+                header += f" | Section: {section}"
+            header += f" | Relevance: {score:.0%}"
 
-        return "\n\n".join(context_parts)
+            context_parts.append(f"{header}\n{text}")
+
+        return "\n\n---\n\n".join(context_parts)
 
     def _parse_confidence(self, response_text: str) -> str:
         """Parse confidence level from response."""
@@ -102,12 +116,23 @@ This is for research only, not legal advice."""
 
         context = self._build_context(context_chunks)
 
-        user_prompt = f"""Question: {question}
+        user_prompt = f"""QUESTION: {question}
 
-Sources:
+DOCUMENT SOURCES:
 {context}
 
-Answer the question using only the sources above. Cite with [Source N]. End with "Confidence: high/medium/low" """
+Please provide a thorough, well-structured answer to the question above using ONLY the information from the document sources provided.
+
+Requirements:
+- Cite every factual claim with [Source N]
+- Be comprehensive and include all relevant details from the sources
+- Use direct quotes where helpful
+- Structure your answer clearly
+
+End your response with exactly one of these:
+- "Confidence: high" - if the sources fully answer the question
+- "Confidence: medium" - if the sources partially answer the question
+- "Confidence: low" - if the sources don't contain relevant information"""
 
         # Count input tokens
         input_text = self.SYSTEM_PROMPT + user_prompt
