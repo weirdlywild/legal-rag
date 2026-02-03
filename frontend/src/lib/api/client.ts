@@ -32,9 +32,11 @@ apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401 && typeof window !== 'undefined') {
-      // Don't redirect for auth endpoints
-      const isAuthEndpoint = error.config?.url?.includes('/auth/');
-      if (!isAuthEndpoint) {
+      // Only redirect for document/query endpoints that require user token
+      const url = error.config?.url || '';
+      const requiresUserToken = url.includes('/documents') || url.includes('/query');
+
+      if (requiresUserToken && localStorage.getItem('auth_token')) {
         localStorage.removeItem('auth_token');
         localStorage.removeItem('user_id');
         window.location.reload();
